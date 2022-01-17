@@ -12,16 +12,16 @@ PRINT_FREQ: 100
 
 DATASET:
   COLOR_RGB: true
-  DATASET: 'coco'
+  DATASET: 'mpii'
   DATA_FORMAT: jpg
   FLIP: true
   NUM_JOINTS_HALF_BODY: 8
   PROB_HALF_BODY: 0.3 
-  ROOT: 'F:\Projects\Transpose\TransPose\data/coco/'
+  ROOT: 'F:\Projects\Transpose\TransPose\data/mpii/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
-  TEST_SET: 'val2017'
-  TRAIN_SET: 'val2017'
+  TEST_SET: 'valid'
+  TRAIN_SET: 'train'
 MODEL:
   # Transformer Encoder
   DIM_MODEL: 96

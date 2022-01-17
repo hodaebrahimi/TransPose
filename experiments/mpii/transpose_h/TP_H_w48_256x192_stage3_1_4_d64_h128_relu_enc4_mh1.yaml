@@ -5,9 +5,9 @@ CUDNN:
   ENABLED: true
 DATA_DIR: ''
 GPUS: (0,)
-OUTPUT_DIR: 'F:\Projects\Transpose\TransPose\output'
-LOG_DIR: 'F:\Projects\Transpose\TransPose\log'
-WORKERS: 1
+OUTPUT_DIR: 'output'
+LOG_DIR: 'log'
+WORKERS: 24
 PRINT_FREQ: 100
 
 DATASET:
@@ -16,18 +16,18 @@ DATASET:
   DATA_FORMAT: jpg
   FLIP: true
   NUM_JOINTS_HALF_BODY: 8
-  PROB_HALF_BODY: 0.3 
-  ROOT: 'F:\Projects\Transpose\TransPose\data/coco/'
+  PROB_HALF_BODY: 0.3
+  ROOT: 'data/coco/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
   TEST_SET: 'val2017'
-  TRAIN_SET: 'val2017'
+  TRAIN_SET: 'train2017'
 MODEL:
   # Transformer Encoder
-  DIM_MODEL: 96
-  DIM_FEEDFORWARD: 192
+  DIM_MODEL: 64
+  DIM_FEEDFORWARD: 128
   N_HEAD: 1
-  ENCODER_LAYERS: 6
+  ENCODER_LAYERS: 4
   ATTENTION_ACTIVATION: relu
   POS_EMBEDDING: sine
   # #
@@ -79,13 +79,15 @@ MODEL:
       - 96
       - 192
       FUSE_METHOD: SUM
+    
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
-  BATCH_SIZE_PER_GPU: 1
+  BATCH_SIZE_PER_GPU: 28
   SHUFFLE: true
   BEGIN_EPOCH: 0
   END_EPOCH: 240
+  OPTIMIZER: adam
   LR: 0.0001  # Initial learning rate
   LR_END: 0.00001  # Final learning rate
   LR_FACTOR: 0.25  # for MultiStepLR
@@ -101,14 +103,11 @@ TRAIN:
   NESTEROV: false
 TEST:
   BLUR_KERNEL: 11
-  BATCH_SIZE_PER_GPU: 1
-  # 'data/coco/person_detection_results/COCO_test-dev2017_detections_AP_H_609_person.json'
-  # 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
-  COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
-  BBOX_THRE: 1.0
+  BATCH_SIZE_PER_GPU: 16
+  COCO_BBOX_FILE: data/coco/person_detection_results/COCO_test-dev2017_detections_AP_H_609_person.json   #
   IMAGE_THRE: 0.0
   IN_VIS_THRE: 0.2
-  MODEL_FILE: F:\Projects\Transpose\TransPose\models\pytorch\transpose_coco\tp_h_48_256x192_enc6_d96_h192_mh1.pth
+  MODEL_FILE: output/coco/pose_hrnet_stage3_1_4_atten/hrnet_w48_stage3_pretrain_1_4_d128_n2_h256_relu_enc4_256x192/model_best.pth
   NMS_THRE: 1.0
   OKS_THRE: 0.9
   USE_GT_BBOX: true

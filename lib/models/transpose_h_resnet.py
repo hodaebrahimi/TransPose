@@ -18,11 +18,15 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 from collections import OrderedDict
 
+from TransPose.lib.models.ResNet import my_resnet18
+
+
 import copy
 from typing import Optional, List
 
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
+
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -242,7 +246,7 @@ class TransformerEncoderLayer(nn.Module):
 
 class HighResolutionModule(nn.Module):
     def __init__(self, num_branches, blocks, num_blocks, num_inchannels,
-                 num_channels, fuse_method, multi_scale_output=True):
+                 num_channels, fuse_method, multi_scale_output=True, fusion=True):
         super(HighResolutionModule, self).__init__()
         self._check_branches(
             num_branches, blocks, num_blocks, num_inchannels, num_channels)
@@ -252,6 +256,8 @@ class HighResolutionModule(nn.Module):
         self.num_branches = num_branches
 
         self.multi_scale_output = multi_scale_output
+        # I added this part
+        self.fusion = fusion
 
         self.branches = self._make_branches(
             num_branches, blocks, num_blocks, num_channels)
@@ -333,6 +339,8 @@ class HighResolutionModule(nn.Module):
         num_branches = self.num_branches
         num_inchannels = self.num_inchannels
         fuse_layers = []
+        # i is the next layer's input
+        # j is the previous layer's output
         for i in range(num_branches if self.multi_scale_output else 1):
             fuse_layer = []
             for j in range(num_branches):
@@ -380,7 +388,13 @@ class HighResolutionModule(nn.Module):
                             )
                     fuse_layer.append(nn.Sequential(*conv3x3s))
             fuse_layers.append(nn.ModuleList(fuse_layer))
-
+        if not self.fusion:
+            for i in range(len(fuse_layers)):
+                if i == 0:
+                    continue
+                for j in range(len(fuse_layers[i])):
+                    fuse_layers[i][j] = None
+                
         return nn.ModuleList(fuse_layers)
 
     def get_num_inchannels(self):
@@ -395,14 +409,29 @@ class HighResolutionModule(nn.Module):
 
         x_fuse = []
 
-        for i in range(len(self.fuse_layers)):
-            y = x[0] if i == 0 else self.fuse_layers[i][0](x[0])
-            for j in range(1, self.num_branches):
-                if i == j:
-                    y = y + x[j]
+        # I added this if
+        if self.fusion: # j (previous) ---> i (next)
+            for i in range(len(self.fuse_layers)):
+                y = x[0] if i == 0 else self.fuse_layers[i][0](x[0])
+                for j in range(1, self.num_branches):
+                    if i == j:
+                        y = y + x[j]
+                    else:
+                        y = y + self.fuse_layers[i][j](x[j])
+                x_fuse.append(self.relu(y))
+        else:
+            for i in range(len(self.fuse_layers)):
+                if i == 0:
+                    y = x[0] if i == 0 else self.fuse_layers[i][0](x[0])
+                    for j in range(1, self.num_branches):
+                        if i == j:
+                            y = y + x[j]
+                        else:
+                            y = y + self.fuse_layers[i][j](x[j])
+                    x_fuse.append(self.relu(y))
                 else:
-                    y = y + self.fuse_layers[i][j](x[j])
-            x_fuse.append(self.relu(y))
+                    x_fuse.append(x[i])
+
 
         return x_fuse
 
@@ -437,8 +466,12 @@ class TransPoseH(nn.Module):
             num_channels[i] * block.expansion for i in range(len(num_channels))
         ]
         self.transition1 = self._make_transition_layer([256], num_channels)
+        # original
+        # self.stage2, pre_stage_channels = self._make_stage(
+        #     self.stage2_cfg, num_channels)
+        # mine
         self.stage2, pre_stage_channels = self._make_stage(
-            self.stage2_cfg, num_channels)
+            self.stage2_cfg, num_channels, multi_scale_output=True, fusion = True)
 
         self.stage3_cfg = extra['STAGE3']
         num_channels = self.stage3_cfg['NUM_CHANNELS']
@@ -448,8 +481,12 @@ class TransPoseH(nn.Module):
         ]
         self.transition2 = self._make_transition_layer(
             pre_stage_channels, num_channels)
+        # original
+        # self.stage3, pre_stage_channels = self._make_stage(
+        #     self.stage3_cfg, num_channels, multi_scale_output=False)
+        # mine
         self.stage3, pre_stage_channels = self._make_stage(
-            self.stage3_cfg, num_channels, multi_scale_output=False)
+            self.stage3_cfg, num_channels, multi_scale_output=True, fusion = False)
 
         d_model = cfg.MODEL.DIM_MODEL
         dim_feedforward = cfg.MODEL.DIM_FEEDFORWARD
@@ -480,7 +517,18 @@ class TransPoseH(nn.Module):
             padding=1 if extra['FINAL_CONV_KERNEL'] == 3 else 0
         )
 
+        self.apply_kp_htmp = nn.Conv2d(in_channels=cfg['MODEL']['NUM_JOINTS'],
+                                       out_channels=3,
+                                       kernel_size=3,
+                                       stride=1,
+                                       padding=1)
+        self.bn_htmp = nn.BatchNorm2d(3, momentum=BN_MOMENTUM)
+        # we need relu here
+        self.up_sampler = nn.Upsample(scale_factor=4, mode='bilinear')
+
         self.pretrained_layers = extra['PRETRAINED_LAYERS']
+
+        self.resnet = my_resnet18(pretrained= True, progress= True, num_classes= 40)
 
     def _make_position_embedding(self, w, h, d_model, pe_type='sine'):
         assert pe_type in ['none', 'learnable', 'sine']
@@ -589,7 +637,7 @@ class TransPoseH(nn.Module):
         return nn.Sequential(*layers)
 
     def _make_stage(self, layer_config, num_inchannels,
-                    multi_scale_output=True):
+                    multi_scale_output=True, fusion=False):
         num_modules = layer_config['NUM_MODULES']
         num_branches = layer_config['NUM_BRANCHES']
         num_blocks = layer_config['NUM_BLOCKS']
@@ -600,10 +648,24 @@ class TransPoseH(nn.Module):
         modules = []
         for i in range(num_modules):
             # multi_scale_output is only used last module
-            if not multi_scale_output and i == num_modules - 1:
-                reset_multi_scale_output = False
-            else:
+            # # original
+            # # multi_scale_output = False
+            # if not multi_scale_output and i == num_modules - 1:
+            #     reset_multi_scale_output = False
+            # # multi_scale_output = True
+            # else:
+            #     reset_multi_scale_output = True
+
+            # # my_first
+            # reset_multi_scale_output = True
+
+            # # my_second
+            if multi_scale_output == True:
                 reset_multi_scale_output = True
+            if not fusion and i == num_modules - 1:
+                reset_fusion = False
+            else:
+                reset_fusion = True
 
             modules.append(
                 HighResolutionModule(
@@ -613,7 +675,8 @@ class TransPoseH(nn.Module):
                     num_inchannels,
                     num_channels,
                     fuse_method,
-                    reset_multi_scale_output
+                    reset_multi_scale_output,
+                    reset_fusion
                 )
             )
             num_inchannels = modules[-1].get_num_inchannels()
@@ -621,6 +684,7 @@ class TransPoseH(nn.Module):
         return nn.Sequential(*modules), num_inchannels
 
     def forward(self, x):
+        input = x
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -651,8 +715,14 @@ class TransPoseH(nn.Module):
         x, atten_maps = self.global_encoder(x, pos=self.pos_embedding) # here we can get the att maps too x = self.global_encoder(x, pos=self.pos_embedding)
         x = x.permute(1, 2, 0).contiguous().view(bs, c, h, w)
         x = self.final_layer(x)
+        # I added this part
+        x = self.apply_kp_htmp(x)
+        x = self.bn_htmp(x)
+        x = self.relu(x)
+        x = torch.mul(input, self.up_sampler(x) + 1)
+        y = self.resnet(x, y_list)
 
-        return x, atten_maps # return x
+        return y, atten_maps # return x
 
     def init_weights(self, pretrained='', print_load_info=False):
         logger.info('=> init weights from normal distribution')

@@ -16,7 +16,7 @@ from collections import OrderedDict
 import numpy as np
 from scipy.io import loadmat, savemat
 
-from dataset.JointsDataset import JointsDataset
+from TransPose.lib.dataset.dataset.JointsDataset import JointsDataset
 
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class MPIIDataset(JointsDataset):
             gt_db.append(
                 {
                     'image': os.path.join(self.root, image_dir, image_name),
-                    'center': c,
+                    'center':    c,
                     'scale': s,
                     'joints_3d': joints_3d,
                     'joints_3d_vis': joints_3d_vis,
@@ -92,6 +92,9 @@ class MPIIDataset(JointsDataset):
             )
 
         return gt_db
+
+    def get_bbox(self):
+        pass
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         # convert 0-based index to 1-based index
@@ -111,10 +114,10 @@ class MPIIDataset(JointsDataset):
                                'annot',
                                'gt_{}.mat'.format(cfg.DATASET.TEST_SET))
         gt_dict = loadmat(gt_file)
-        dataset_joints = gt_dict['dataset_joints']
-        jnt_missing = gt_dict['jnt_missing']
-        pos_gt_src = gt_dict['pos_gt_src']
-        headboxes_src = gt_dict['headboxes_src']
+        dataset_joints = gt_dict['dataset_joints'] # names of joints = 16
+        jnt_missing = gt_dict['jnt_missing'] # 16 * number of images => 0 & 1
+        pos_gt_src = gt_dict['pos_gt_src'] # 16 * 2 * number of images
+        headboxes_src = gt_dict['headboxes_src'] # 2 * 2 * number of images
 
         pos_pred_src = np.transpose(preds, [1, 2, 0])
 

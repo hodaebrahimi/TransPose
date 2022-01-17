@@ -14,6 +14,7 @@ import os
 import pprint
 
 import torch
+from torch.nn import CrossEntropyLoss as cel
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
@@ -25,7 +26,7 @@ import TransPose.tools._init_paths
 from TransPose.lib.config import cfg
 from TransPose.lib.config import update_config
 from TransPose.lib.core.loss import JointsMSELoss
-from TransPose.lib.core.function import validate
+from TransPose.lib.core.function import validate_resnet
 from TransPose.lib.utils.utils import create_logger
 
 import TransPose.lib.dataset as dataset
@@ -126,9 +127,11 @@ def main():
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
     # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(
-        use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
-    ).cuda()
+    # criterion = JointsMSELoss(
+    #     use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
+    # ).cuda()
+
+    criterion = cel().cuda()
 
     # Data loading code
     normalize = transforms.Normalize(
@@ -150,7 +153,7 @@ def main():
     )
 
     # evaluate on validation set
-    validate(cfg, valid_loader, valid_dataset, model, criterion,
+    validate_resnet(cfg, valid_loader, valid_dataset, model, criterion,
              final_output_dir, tb_log_dir)
 
 

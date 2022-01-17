@@ -30,8 +30,12 @@ import TransPose.tools._init_paths
 from TransPose.lib.config import cfg
 from TransPose.lib.config import update_config
 from TransPose.lib.core.loss import JointsMSELoss
+from torch.nn import CrossEntropyLoss as cel
 from TransPose.lib.core.function import train
+from TransPose.lib.core.function import train_resnet
+
 from TransPose.lib.core.function import validate
+from TransPose.lib.core.function import validate_resnet
 from TransPose.lib.utils.utils import get_optimizer
 from TransPose.lib.utils.utils import save_checkpoint
 from TransPose.lib.utils.utils import create_logger
@@ -44,6 +48,8 @@ import TransPose.lib.dataset as dataset
 # import TransPose.lib.models as models
 from TransPose.lib.models import transpose_h
 from TransPose.lib.models import transpose_r
+from TransPose.lib.models import transpose_h_resnet
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train keypoints network')
@@ -106,9 +112,10 @@ def main():
     # )
     if cfg.MODEL.NAME == 'transpose_h':
         model = transpose_h.get_pose_net(cfg, is_train=False)
+    elif cfg.MODEL.NAME == 'transpose_h_resnet':
+        model = transpose_h_resnet.get_pose_net(cfg, is_train=False)
     else:
         model = transpose_r.get_pose_net(cfg, is_train=False)
-
 
     # copy model file
     this_dir = os.path.dirname(__file__)
@@ -127,13 +134,31 @@ def main():
         (1, 3, cfg.MODEL.IMAGE_SIZE[1], cfg.MODEL.IMAGE_SIZE[0])
     )
 
+    for name, param in model.named_parameters():
+        # print(name)
+        if 'resnet' in name:
+            param.requires_grad = True
+        elif 'apply_kp_htmp.weight' in name:
+            param.requires_grad = True
+        elif 'apply_kp_htmp.bias' in name:
+            param.requires_grad = True
+        elif 'bn_htmp.weight' in name:
+            param.requires_grad = True
+        elif 'bn_htmp.bias' in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name)
+
+
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
 
     # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(
-        use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
-    ).cuda()
+    criterion = cel().cuda()
 
     # Data loading code
     normalize = transforms.Normalize(
@@ -173,16 +198,30 @@ def main():
     best_model = False
     last_epoch = -1
 
+        # if 'resnet' in child:
+        #     child.requires_grad = True
+        # if not ('stage3' in child and 'fuselayers' in key):
+        #     child.requires_grad = False
+
+
     optimizer = get_optimizer(cfg, model)
+    FINETUNE_RESNET = True
 
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
+    if FINETUNE_RESNET:
+        initial_weights_file = cfg.TEST.MODEL_FILE
+        initial_weights = torch.load(initial_weights_file)
+
+
     checkpoint_file = os.path.join(
-        final_output_dir, 'checkpoint.pth'
-    )
+            final_output_dir, 'checkpoint.pth'
+        )
+
 
     if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
         logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
         checkpoint = torch.load(checkpoint_file)
+
         begin_epoch = checkpoint['epoch']
         best_perf = checkpoint['perf']
         last_epoch = checkpoint['epoch']
@@ -190,11 +229,15 @@ def main():
         writer_dict['train_global_steps'] = checkpoint['train_global_steps']
         writer_dict['valid_global_steps'] = checkpoint['valid_global_steps']
 
-        model.load_state_dict(checkpoint['state_dict'])
+        model.load_state_dict(checkpoint['state_dict'], strict= False)
 
         optimizer.load_state_dict(checkpoint['optimizer'])
-        logger.info("=> loaded checkpoint '{}' (epoch {})".format(
-            checkpoint_file, checkpoint['epoch']))
+    else:
+        model.module.load_state_dict(initial_weights, strict=False)  # strict=False FOR UNSeen Resolutions
+    # logger.info("=> loaded checkpoint '{}' (epoch {})".format(
+    #     checkpoint_file, checkpoint['epoch']))
+    logger.info("=> loaded initial weights '{}' (epoch {})".format(
+    initial_weights_file, begin_epoch))
 
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
@@ -211,19 +254,21 @@ def main():
 
         logger.info("=> current learning rate is {:.6f}".format(lr_scheduler.get_last_lr()[0]))
         # train for one epoch
-        train(cfg, train_loader, model, criterion, optimizer, epoch,
+        train_resnet(cfg, train_loader, model, criterion, optimizer, epoch,
               final_output_dir, tb_log_dir, writer_dict)
 
         # evaluate on validation set
-        perf_indicator = validate(
-            cfg, valid_loader, valid_dataset, model, criterion,
-            final_output_dir, tb_log_dir, writer_dict
-        )
+        # perf_indicator = validate(
+        #     cfg, valid_loader, valid_dataset, model, criterion,
+        #     final_output_dir, tb_log_dir, writer_dict
+        # )
+        average_acc = validate_resnet(cfg, valid_loader, valid_dataset, model, criterion,
+                        final_output_dir, tb_log_dir)
         
         lr_scheduler.step()
 
-        if perf_indicator >= best_perf:
-            best_perf = perf_indicator
+        if average_acc >= best_perf:
+            best_perf = average_acc
             best_model = True
         else:
             best_model = False
@@ -234,7 +279,7 @@ def main():
             'model': cfg.MODEL.NAME,
             'state_dict': model.state_dict(),
             'best_state_dict': model.module.state_dict(),
-            'perf': perf_indicator,
+            'accuracy': average_acc,
             'optimizer': optimizer.state_dict(),
             'train_global_steps': writer_dict['train_global_steps'],
             'valid_global_steps': writer_dict['valid_global_steps'],

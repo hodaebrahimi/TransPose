@@ -25,14 +25,13 @@ import TransPose.tools._init_paths
 from TransPose.lib.config import cfg
 from TransPose.lib.config import update_config
 from TransPose.lib.core.loss import JointsMSELoss
-from TransPose.lib.core.function import validate
+from TransPose.lib.core.function_hoda import validate
 from TransPose.lib.utils.utils import create_logger
 
 import TransPose.lib.dataset as dataset
 # import TransPose.lib.models as models
 from TransPose.lib.models import transpose_h
 from TransPose.lib.models import transpose_r
-from TransPose.lib.models import transpose_h_resnet
 
 
 
@@ -87,8 +86,6 @@ def main():
 
     if cfg.MODEL.NAME == 'transpose_h':
         model = transpose_h.get_pose_net(cfg, is_train=False)
-    elif cfg.MODEL.NAME == 'transpose_h_resnet':
-        model = transpose_h_resnet.get_pose_net(cfg, is_train=False)
     else:
         model = transpose_r.get_pose_net(cfg, is_train=False)
 
@@ -101,7 +98,7 @@ def main():
         ckpt_state_dict = torch.load(cfg.TEST.MODEL_FILE)
         # print(ckpt_state_dict['pos_embedding'])  # FOR UNSeen Resolutions
         # ckpt_state_dict.pop('pos_embedding') # FOR UNSeen Resolutions
-        model.load_state_dict(ckpt_state_dict, strict=False)   #  strict=False FOR UNSeen Resolutions
+        model.load_state_dict(ckpt_state_dict, strict=True)   #  strict=False FOR UNSeen Resolutions
     else:
         model_state_file = os.path.join(
             final_output_dir, 'final_state.pth'

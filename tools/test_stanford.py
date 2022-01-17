@@ -25,14 +25,13 @@ import TransPose.tools._init_paths
 from TransPose.lib.config import cfg
 from TransPose.lib.config import update_config
 from TransPose.lib.core.loss import JointsMSELoss
-from TransPose.lib.core.function import validate
+from TransPose.lib.core.function_hoda import validate
 from TransPose.lib.utils.utils import create_logger
 
 import TransPose.lib.dataset as dataset
 # import TransPose.lib.models as models
 from TransPose.lib.models import transpose_h
 from TransPose.lib.models import transpose_r
-from TransPose.lib.models import transpose_h_resnet
 
 
 
@@ -87,8 +86,6 @@ def main():
 
     if cfg.MODEL.NAME == 'transpose_h':
         model = transpose_h.get_pose_net(cfg, is_train=False)
-    elif cfg.MODEL.NAME == 'transpose_h_resnet':
-        model = transpose_h_resnet.get_pose_net(cfg, is_train=False)
     else:
         model = transpose_r.get_pose_net(cfg, is_train=False)
 
@@ -101,7 +98,7 @@ def main():
         ckpt_state_dict = torch.load(cfg.TEST.MODEL_FILE)
         # print(ckpt_state_dict['pos_embedding'])  # FOR UNSeen Resolutions
         # ckpt_state_dict.pop('pos_embedding') # FOR UNSeen Resolutions
-        model.load_state_dict(ckpt_state_dict, strict=False)   #  strict=False FOR UNSeen Resolutions
+        model.load_state_dict(ckpt_state_dict, strict=True)   #  strict=False FOR UNSeen Resolutions
     else:
         model_state_file = os.path.join(
             final_output_dir, 'final_state.pth'
@@ -125,17 +122,12 @@ def main():
 
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
-    # define loss function (criterion) and optimizer
-    criterion = JointsMSELoss(
-        use_target_weight=cfg.LOSS.USE_TARGET_WEIGHT
-    ).cuda()
-
     # Data loading code
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
     valid_dataset = eval('dataset.'+cfg.DATASET.DATASET)(
-        cfg, cfg.DATASET.ROOT, cfg.DATASET.TEST_SET, False,
+        cfg,
         transforms.Compose([
             transforms.ToTensor(),
             normalize,
@@ -150,7 +142,9 @@ def main():
     )
 
     # evaluate on validation set
-    validate(cfg, valid_loader, valid_dataset, model, criterion,
+    # validate(cfg, valid_loader, valid_dataset, model, criterion,
+    #          final_output_dir, tb_log_dir)
+    validate(cfg, valid_loader, valid_dataset, model,
              final_output_dir, tb_log_dir)
 
 

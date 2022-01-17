@@ -21,12 +21,12 @@ class JointsMSELoss(nn.Module):
     def forward(self, output, target, target_weight):
         batch_size = output.size(0)
         num_joints = output.size(1)
-        heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1)
+        heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1) # tuple_len = 17 (17)*(5*1*3072)
         heatmaps_gt = target.reshape((batch_size, num_joints, -1)).split(1, 1)
         loss = 0
 
         for idx in range(num_joints):
-            heatmap_pred = heatmaps_pred[idx].squeeze()
+            heatmap_pred = heatmaps_pred[idx].squeeze() # 5*1*3072 => 5*3072
             heatmap_gt = heatmaps_gt[idx].squeeze()
             if self.use_target_weight:
                 loss += 0.5 * self.criterion(

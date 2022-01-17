@@ -19,9 +19,9 @@ from pycocotools.cocoeval import COCOeval
 import json_tricks as json
 import numpy as np
 
-from dataset.JointsDataset import JointsDataset
-from nms.nms import oks_nms
-from nms.nms import soft_oks_nms
+from .dataset.JointsDataset import JointsDataset
+from ..nms.nms import oks_nms
+from ..nms.nms import soft_oks_nms
 
 
 logger = logging.getLogger(__name__)
@@ -152,12 +152,12 @@ class COCODataset(JointsDataset):
         :param index: coco image id
         :return: db entry
         """
-        im_ann = self.coco.loadImgs(index)[0]
+        im_ann = self.coco.loadImgs(index)[0] # image information
         width = im_ann['width']
         height = im_ann['height']
 
-        annIds = self.coco.getAnnIds(imgIds=index, iscrowd=False)
-        objs = self.coco.loadAnns(annIds)
+        annIds = self.coco.getAnnIds(imgIds=index, iscrowd=False) # indexes of the objects in the image
+        objs = self.coco.loadAnns(annIds) # load  the objects according to the indexes annIds
 
         # sanitize bboxes
         valid_objs = []

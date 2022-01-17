@@ -13,6 +13,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import models.transpose_r
-import models.transpose_h
+import TransPose.lib.models.transpose_h
+import TransPose.lib.models.transpose_r
+import TransPose.lib.models.transpose_h_resnet
+import TransPose.lib.models.ResNet
+
+# import models.transpose_h
 
