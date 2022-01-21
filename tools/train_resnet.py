@@ -272,6 +272,7 @@ def main():
 
     for epoch in range(begin_epoch, cfg.TRAIN.END_EPOCH):
         epoch_dict = dict()
+        logger.info(log_output_dicts)
 
         logger.info("=> current learning rate is {:.6f}".format(lr_scheduler.get_last_lr()[0]))
         # train for one epoch
