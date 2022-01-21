@@ -232,6 +232,8 @@ def main():
         logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
         checkpoint = torch.load(checkpoint_file)
 
+        log_output_dicts = checkpoint['log_output'] if 'log_output' in checkpoint.keys() else []
+
         begin_epoch = checkpoint['epoch']
         best_perf = checkpoint['accuracy']
         last_epoch = checkpoint['epoch']
@@ -253,6 +255,7 @@ def main():
     #     checkpoint_file, checkpoint['epoch']))
         logger.info("=> loaded initial weights '{}' (epoch {})".format(
         initial_weights_file, begin_epoch))
+        log_output_dicts = []
 
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
@@ -264,21 +267,33 @@ def main():
 
     model.cuda()
 
+    # log_output_dicts = []
+
 
     for epoch in range(begin_epoch, cfg.TRAIN.END_EPOCH):
+        epoch_dict = dict()
 
         logger.info("=> current learning rate is {:.6f}".format(lr_scheduler.get_last_lr()[0]))
         # train for one epoch
-        train_resnet(cfg, train_loader, model, criterion, optimizer, epoch,
+        train_loss, train_acc = train_resnet(cfg, train_loader, model, criterion, optimizer, epoch,
               final_output_dir, tb_log_dir, writer_dict)
+
+        epoch_dict.update({'train loss' : train_loss})
+        epoch_dict.update({'train accuracy' : train_acc})
+
 
         # evaluate on validation set
         # perf_indicator = validate(
         #     cfg, valid_loader, valid_dataset, model, criterion,
         #     final_output_dir, tb_log_dir, writer_dict
         # )
-        average_acc = validate_resnet(cfg, valid_loader, valid_dataset, model, criterion,
+        test_loss, average_acc = validate_resnet(cfg, valid_loader, valid_dataset, model, criterion,
                         final_output_dir, tb_log_dir)
+
+        epoch_dict.update({'test loss' : test_loss})
+        epoch_dict.update({'test accuracy' : average_acc})
+
+        log_output_dicts.append(epoch_dict)
         
         lr_scheduler.step()
 
@@ -298,6 +313,7 @@ def main():
             'optimizer': optimizer.state_dict(),
             'train_global_steps': writer_dict['train_global_steps'],
             'valid_global_steps': writer_dict['valid_global_steps'],
+            'log_output': log_output_dicts,
         }, best_model, final_output_dir)
 
     final_model_state_file = os.path.join(
