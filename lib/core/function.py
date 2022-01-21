@@ -146,8 +146,8 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
 
         avg_acc = accuracy_classification(output.detach().cpu().numpy(),
                                          target.detach().cpu().numpy())
-        num_imgs = input.shape[0]
-        acc.update(avg_acc, num_imgs)
+        # num_imgs = input.shape[0]
+        acc.update(avg_acc, input.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)

@@ -37,6 +37,8 @@ from core.function import train_resnet
 from core.function import validate
 from core.function import validate_resnet
 from utils.utils import get_optimizer
+from utils.utils import get_optimizer_resnet
+
 from utils.utils import save_checkpoint
 from utils.utils import create_logger
 from utils.utils import get_model_summary
@@ -134,18 +136,25 @@ def main():
         (1, 3, cfg.MODEL.IMAGE_SIZE[1], cfg.MODEL.IMAGE_SIZE[0])
     )
 
+    trainable_parameters = []
+
     for name, param in model.named_parameters():
         # print(name)
         if 'resnet' in name:
             param.requires_grad = True
+            trainable_parameters.append(param)
         elif 'apply_kp_htmp.weight' in name:
             param.requires_grad = True
+            trainable_parameters.append(param)
         elif 'apply_kp_htmp.bias' in name:
             param.requires_grad = True
+            trainable_parameters.append(param)
         elif 'bn_htmp.weight' in name:
             param.requires_grad = True
+            trainable_parameters.append(param)
         elif 'bn_htmp.bias' in name:
             param.requires_grad = True
+            trainable_parameters.append(param)
         else:
             param.requires_grad = False
 
@@ -204,7 +213,8 @@ def main():
         #     child.requires_grad = False
 
 
-    optimizer = get_optimizer(cfg, model)
+    # optimizer = get_optimizer(cfg, model)
+    optimizer = get_optimizer_resnet(cfg, trainable_parameters)
     FINETUNE_RESNET = True
 
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
