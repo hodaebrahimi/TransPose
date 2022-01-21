@@ -124,6 +124,7 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
         data_time.update(time.time() - end)
 
         # compute output
+        # change it later
         # outputs, _ = model(input)
         outputs, z = model(input)
 
