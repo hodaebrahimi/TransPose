@@ -15,9 +15,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from TransPose.lib.utils.transforms import get_affine_transform
-from TransPose.lib.utils.transforms import affine_transform
-from TransPose.lib.utils.transforms import fliplr_joints
+from utils.transforms import get_affine_transform
+from utils.transforms import affine_transform
+from utils.transforms import fliplr_joints
 
 
 logger = logging.getLogger(__name__)
@@ -51,8 +51,8 @@ class stanford(Dataset):
         self.color_rgb = cfg.DATASET.COLOR_RGB
         self.image_size = np.array(cfg.MODEL.IMAGE_SIZE)
         self.heatmap_size = np.array(cfg.MODEL.HEATMAP_SIZE)
-        self.root_img = 'F:/Projects/working on stanford40/JPEGImages'
-        self.anno = scio.loadmat('F:/Projects/working on stanford40/MatlabAnnotations/annotation.mat')
+        self.root_img = '/content/TransPose/data/stanford/JPEGImages'
+        self.anno = scio.loadmat('/content/TransPose/data/stanford/MatlabAnnotations/annotation.mat')
         self.img_name = []
         self.images = []
         self.action = []
@@ -72,7 +72,7 @@ class stanford(Dataset):
             with open(cfg.DATASET.test_split) as fp:
                 contents = fp.read().split('\n')
                 # contents = contents[:10]
-        with open('F:\Projects\working on stanford40\stanford40dataset', 'rb') as handle:
+        with open('/content/drive/MyDrive/classes of stanford/stanford40dataset', 'rb') as handle:
             b = pickle.load(handle)
         j = 0
         for i, img in enumerate(self.anno['annotation'][0]):

@@ -16,12 +16,12 @@ import os
 import numpy as np
 import torch
 
-from ..core.evaluate import accuracy
-from ..core.inference import get_final_preds
-from ..utils.transforms import flip_back
-from ..utils.vis import save_debug_images
+from core.evaluate import accuracy
+from core.inference import get_final_preds
+from utils.transforms import flip_back
+from utils.vis import save_debug_images
 
-from TransPose.visualize import inspect_atten_map_by_locations
+# from ...visualize import inspect_atten_map_by_locations
 
 
 logger = logging.getLogger(__name__)

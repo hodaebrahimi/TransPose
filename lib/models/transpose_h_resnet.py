@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 from collections import OrderedDict
 
-from TransPose.lib.models.ResNet import my_resnet18
+from models.ResNet import my_resnet18
 
 
 import copy

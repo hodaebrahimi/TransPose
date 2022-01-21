@@ -26,29 +26,29 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 from tensorboardX import SummaryWriter
 
-import TransPose.tools._init_paths
-from TransPose.lib.config import cfg
-from TransPose.lib.config import update_config
-from TransPose.lib.core.loss import JointsMSELoss
+import _init_paths
+from config import cfg
+from config import update_config
+from core.loss import JointsMSELoss
 from torch.nn import CrossEntropyLoss as cel
-from TransPose.lib.core.function import train
-from TransPose.lib.core.function import train_resnet
+from core.function import train
+from core.function import train_resnet
 
-from TransPose.lib.core.function import validate
-from TransPose.lib.core.function import validate_resnet
-from TransPose.lib.utils.utils import get_optimizer
-from TransPose.lib.utils.utils import save_checkpoint
-from TransPose.lib.utils.utils import create_logger
-from TransPose.lib.utils.utils import get_model_summary
+from core.function import validate
+from core.function import validate_resnet
+from utils.utils import get_optimizer
+from utils.utils import save_checkpoint
+from utils.utils import create_logger
+from utils.utils import get_model_summary
 
 # import dataset
 # import models
 
-import TransPose.lib.dataset as dataset
-# import TransPose.lib.models as models
-from TransPose.lib.models import transpose_h
-from TransPose.lib.models import transpose_r
-from TransPose.lib.models import transpose_h_resnet
+import dataset as dataset
+# import models as models
+from models import transpose_h
+from models import transpose_r
+from models import transpose_h_resnet
 
 
 def parse_args():
@@ -223,7 +223,7 @@ def main():
         checkpoint = torch.load(checkpoint_file)
 
         begin_epoch = checkpoint['epoch']
-        best_perf = checkpoint['perf']
+        best_perf = checkpoint['accuracy']
         last_epoch = checkpoint['epoch']
 
         writer_dict['train_global_steps'] = checkpoint['train_global_steps']
@@ -232,12 +232,15 @@ def main():
         model.load_state_dict(checkpoint['state_dict'], strict= False)
 
         optimizer.load_state_dict(checkpoint['optimizer'])
+        logger.info("=> loaded last checkpoint '{}' (epoch {})".format(
+            checkpoint_file, begin_epoch))
     else:
+        logger.info("=> loading initial weights '{}'".format(initial_weights))
         model.module.load_state_dict(initial_weights, strict=False)  # strict=False FOR UNSeen Resolutions
     # logger.info("=> loaded checkpoint '{}' (epoch {})".format(
     #     checkpoint_file, checkpoint['epoch']))
-    logger.info("=> loaded initial weights '{}' (epoch {})".format(
-    initial_weights_file, begin_epoch))
+        logger.info("=> loaded initial weights '{}' (epoch {})".format(
+        initial_weights_file, begin_epoch))
 
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.TRAIN.LR_STEP, cfg.TRAIN.LR_FACTOR,
