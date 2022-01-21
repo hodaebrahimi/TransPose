@@ -21,6 +21,8 @@ from core.inference import get_final_preds
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
 
+from torchvision.utils import save_image
+
 # from ...visualize import inspect_atten_map_by_locations
 
 
@@ -122,7 +124,9 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
         data_time.update(time.time() - end)
 
         # compute output
-        outputs, _ = model(input)
+        # outputs, _ = model(input)
+        outputs, z = model(input)
+
 
         target = meta['target'].cuda(non_blocking=True)
 
@@ -136,6 +140,18 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
 
         # loss = criterion(output, target, target_weight)
 
+        imag1 = input[0].squeeze()
+        imag2 = input[1].squeeze()
+
+        im3 = z[0].squeeze()
+        im4 = z[1].squeeze()
+
+
+        save_image(imag1,'/content/original_image{}_0.jpg'.format(i))
+        save_image(imag2,'/content/original_image{}_1.jpg'.format(i))
+
+        save_image(im3,'/content/model_image{}_0.jpg'.format(i))
+        save_image(im4,'/content/model_image{}_1.jpg'.format(i))
         # compute gradient and do update step
         optimizer.zero_grad()
         loss.backward()

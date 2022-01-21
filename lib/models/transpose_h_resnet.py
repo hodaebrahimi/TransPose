@@ -24,6 +24,8 @@ from models.ResNet import my_resnet18
 import copy
 from typing import Optional, List
 
+import cv2
+
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
 
@@ -720,9 +722,20 @@ class TransPoseH(nn.Module):
         x = self.bn_htmp(x)
         x = self.relu(x)
         x = torch.mul(input, self.up_sampler(x) + 1)
+        # from PIL import Image
+        # # from PIL import display
+        # from torchvision import transforms
+        # import matplotlib.pyplot as plt
+        # image = x[0].squeeze().permute(1,2,0).mul(255).detach().cpu().byte().numpy()
+        z = x
+        # im = transforms.ToPILImage()(image).convert("RGB")
+        # plt.imshow(im)
+        
         y = self.resnet(x, y_list)
 
-        return y, atten_maps # return x
+        # return y, atten_maps # return x
+        return y, z # return x
+
 
     def init_weights(self, pretrained='', print_load_info=False):
         logger.info('=> init weights from normal distribution')
