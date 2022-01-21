@@ -756,7 +756,7 @@ class TransPoseH(nn.Module):
         elif pretrained:
             logger.error('=> please download pre-trained models first!')
             raise ValueError('{} is not exist!'.format(pretrained))
-def init_weights_resnet(self, pretrained='', print_load_info=False):
+    def init_weights_resnet(self, pretrained='', print_load_info=False):
         logger.info('=> init weights from normal distribution')
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -775,7 +775,7 @@ def init_weights_resnet(self, pretrained='', print_load_info=False):
 
         if os.path.isfile(pretrained):
             pretrained_state_dict = torch.load(pretrained)
-            logger.info('=> loading pretrained model {}'.format(pretrained))
+            logger.info('=> loading pretrained model (pose model) {}'.format(pretrained))
 
             existing_state_dict = {}
             for name, m in pretrained_state_dict.items():
