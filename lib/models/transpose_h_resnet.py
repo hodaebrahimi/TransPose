@@ -756,12 +756,43 @@ class TransPoseH(nn.Module):
         elif pretrained:
             logger.error('=> please download pre-trained models first!')
             raise ValueError('{} is not exist!'.format(pretrained))
+def init_weights_resnet(self, pretrained='', print_load_info=False):
+        logger.info('=> init weights from normal distribution')
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.normal_(m.weight, std=0.001)
+                for name, _ in m.named_parameters():
+                    if name in ['bias']:
+                        nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.ConvTranspose2d):
+                nn.init.normal_(m.weight, std=0.001)
+                for name, _ in m.named_parameters():
+                    if name in ['bias']:
+                        nn.init.constant_(m.bias, 0)
 
+        if os.path.isfile(pretrained):
+            pretrained_state_dict = torch.load(pretrained)
+            logger.info('=> loading pretrained model {}'.format(pretrained))
+
+            existing_state_dict = {}
+            for name, m in pretrained_state_dict.items():
+                if name.split('.')[0] in self.pretrained_layers and name in self.state_dict()\
+                   or self.pretrained_layers[0] is '*':
+                    existing_state_dict[name] = m
+                    if print_load_info:
+                        print(":: {} is loaded from {}".format(name, pretrained))
+            self.load_state_dict(existing_state_dict, strict=False)
+        elif pretrained:
+            logger.error('=> please download pre-trained models first!')
+            raise ValueError('{} is not exist!'.format(pretrained))
 
 def get_pose_net(cfg, is_train, **kwargs):
     model = TransPoseH(cfg, **kwargs)
 
     if is_train and cfg['MODEL']['INIT_WEIGHTS']:
-        model.init_weights(cfg['MODEL']['PRETRAINED'])
+        model.init_weights_resnet(cfg['MODEL']['PRETRAINED'])
 
     return model

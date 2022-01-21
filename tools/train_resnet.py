@@ -111,9 +111,9 @@ def main():
     #     cfg, is_train=True
     # )
     if cfg.MODEL.NAME == 'transpose_h':
-        model = transpose_h.get_pose_net(cfg, is_train=False)
+        model = transpose_h.get_pose_net(cfg, is_train=True)
     elif cfg.MODEL.NAME == 'transpose_h_resnet':
-        model = transpose_h_resnet.get_pose_net(cfg, is_train=False)
+        model = transpose_h_resnet.get_pose_net(cfg, is_train=True)
     else:
         model = transpose_r.get_pose_net(cfg, is_train=False)
 
