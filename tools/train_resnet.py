@@ -225,6 +225,8 @@ def main():
         begin_epoch = checkpoint['epoch']
         best_perf = checkpoint['accuracy']
         last_epoch = checkpoint['epoch']
+        logger.info("=> best accuracy is '{}' (until epoch {})".format(
+            best_perf, last_epoch))
 
         writer_dict['train_global_steps'] = checkpoint['train_global_steps']
         writer_dict['valid_global_steps'] = checkpoint['valid_global_steps']
