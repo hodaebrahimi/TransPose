@@ -278,6 +278,7 @@ def main():
         train_loss, train_acc = train_resnet(cfg, train_loader, model, criterion, optimizer, epoch,
               final_output_dir, tb_log_dir, writer_dict)
 
+        epoch_dict.update({'epoch' : epoch})
         epoch_dict.update({'train loss' : train_loss})
         epoch_dict.update({'train accuracy' : train_acc})
 
