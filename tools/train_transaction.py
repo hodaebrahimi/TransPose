@@ -220,7 +220,7 @@ def main():
         checkpoint = torch.load(checkpoint_file)
 
         begin_epoch = checkpoint['epoch']
-        best_perf = checkpoint['accuracy']
+        best_perf = checkpoint['accuracy_branch_1']
         last_epoch = checkpoint['epoch']
 
         writer_dict['train_global_steps'] = checkpoint['train_global_steps']
