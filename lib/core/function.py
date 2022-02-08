@@ -23,20 +23,17 @@ from utils.vis import save_debug_images
 
 from torchvision.utils import save_image
 
-# from ...visualize import inspect_atten_map_by_locations
-
-
 logger = logging.getLogger(__name__)
+
 
 def accuracy_classification(output, target):
     num_batch = output.shape[0]
     if not num_batch == target.shape[0]:
         raise ValueError
-    pred = np.argmax(output, axis= 1)
+    pred = np.argmax(output, axis=1)
     true_ = (pred == target).sum()
 
-    return true_/num_batch
-
+    return true_ / num_batch
 
 
 def train(config, train_loader, model, criterion, optimizer, epoch,
@@ -93,9 +90,9 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
                   'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
                   'Loss {loss.val:.5f} ({loss.avg:.5f})\t' \
                   'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                      epoch, i, len(train_loader), batch_time=batch_time,
-                      speed=input.size(0)/batch_time.val,
-                      data_time=data_time, loss=losses, acc=acc)
+                epoch, i, len(train_loader), batch_time=batch_time,
+                speed=input.size(0) / batch_time.val,
+                data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
 
             writer = writer_dict['writer']
@@ -108,8 +105,9 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             # save_debug_images(config, input, meta, target, pred*4, output,
             #                   prefix)
 
+
 def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
-          output_dir, tb_log_dir, writer_dict):
+                 output_dir, tb_log_dir, writer_dict):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -124,10 +122,7 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
         data_time.update(time.time() - end)
 
         # compute output
-        # change it later
-        # outputs, _ = model(input)
-        outputs, z = model(input)
-
+        outputs, _ = model(input)
 
         target = meta['target'].cuda(non_blocking=True)
 
@@ -141,18 +136,6 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
 
         # loss = criterion(output, target, target_weight)
 
-        imag1 = input[0].squeeze()
-        imag2 = input[1].squeeze()
-
-        im3 = z[0].squeeze()
-        im4 = z[1].squeeze()
-
-
-        save_image(imag1,'/content/original_image{}_0.jpg'.format(i))
-        save_image(imag2,'/content/original_image{}_1.jpg'.format(i))
-
-        save_image(im3,'/content/model_image{}_0.jpg'.format(i))
-        save_image(im4,'/content/model_image{}_1.jpg'.format(i))
         # compute gradient and do update step
         optimizer.zero_grad()
         loss.backward()
@@ -162,9 +145,9 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
         losses.update(loss.item(), input.size(0))
 
         avg_acc = accuracy_classification(output.detach().cpu().numpy(),
-                                         target.detach().cpu().numpy())
-        # num_imgs = input.shape[0]
-        acc.update(avg_acc, input.size(0))
+                                          target.detach().cpu().numpy())
+        num_imgs = input.shape[0]
+        acc.update(avg_acc, num_imgs)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -177,9 +160,9 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
                   'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
                   'Loss {loss.val:.5f} ({loss.avg:.5f})\t' \
                   'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                      epoch, i, len(train_loader), batch_time=batch_time,
-                      speed=input.size(0)/batch_time.val,
-                      data_time=data_time, loss=losses, acc=acc)
+                epoch, i, len(train_loader), batch_time=batch_time,
+                speed=input.size(0) / batch_time.val,
+                data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
 
             writer = writer_dict['writer']
@@ -191,7 +174,91 @@ def train_resnet(config, train_loader, model, criterion, optimizer, epoch,
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
             # save_debug_images(config, input, meta, target, pred*4, output,
             #                   prefix)
-    return losses.avg, acc.avg
+
+
+def train_transaction(config, train_loader, model, criterion, optimizer, epoch,
+                      output_dir, tb_log_dir, writer_dict):
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    acc1 = AverageMeter()
+    acc2 = AverageMeter()
+
+    a1 = config.LOSS.A1
+    a2 = config.LOSS.A2
+
+    # switch to train mode
+    model.train()
+
+    end = time.time()
+    for i, (input, meta) in enumerate(train_loader):
+        # measure data loading time
+        data_time.update(time.time() - end)
+
+        # compute output
+        # outputs, action_outputs_trans, action_outputs_linear = model(input)
+        outputs, action_outputs_trans = model(input)
+
+        target = meta['target'].cuda(non_blocking=True)
+
+        if isinstance(action_outputs_trans, list):
+            loss = criterion(action_outputs_trans[0], target)
+            for output in action_outputs_trans[1:]:
+                loss += criterion(output, target)
+        else:
+            output1 = action_outputs_trans
+            # output2 = action_outputs_linear
+            # loss_trans = criterion(output1, target)
+            # loss_linear = criterion(output2, target)
+            # loss = a1 * loss_trans + a2 * loss_linear
+            loss = criterion(output1, target)
+
+        # loss = criterion(output, target, target_weight)
+
+        # compute gradient and do update step
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # measure accuracy and record loss
+        losses.update(loss.item(), input.size(0))
+
+        avg_acc1 = accuracy_classification(output1.detach().cpu().numpy(),
+                                           target.detach().cpu().numpy())
+        # avg_acc2 = accuracy_classification(output2.detach().cpu().numpy(),
+        #                                    target.detach().cpu().numpy())
+
+        num_imgs = input.shape[0]
+        acc1.update(avg_acc1, num_imgs)
+        # acc2.update(avg_acc2, num_imgs)
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+
+        if i % config.PRINT_FREQ == 0:
+            msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                  'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                  'Speed {speed:.1f} samples/s\t' \
+                  'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                  'Loss {loss.val:.5f} ({loss.avg:.5f})\n' \
+                  'Accuracy of First Branch {acc1.val:.3f} ({acc1.avg:.3f})\n'.format(
+                epoch, i, len(train_loader), batch_time=batch_time,
+                speed=input.size(0) / batch_time.val,
+                data_time=data_time, loss=losses, acc1=acc1)
+            logger.info(msg)
+
+            writer = writer_dict['writer']
+            global_steps = writer_dict['train_global_steps']
+            writer.add_scalar('train_loss', losses.val, global_steps)
+            writer.add_scalar('train_acc_first_branch', acc1.val, global_steps)
+            # writer.add_scalar('train_acc_second_branch', acc2.val, global_steps)
+            writer_dict['train_global_steps'] = global_steps + 1
+
+            prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
+            # save_debug_images(config, input, meta, target, pred*4, output,
+            #                   prefix)
+
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,
              tb_log_dir, writer_dict=None):
@@ -216,7 +283,10 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
         end = time.time()
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
             # compute output
-            outputs, atten_maps = model(input) # outputs = model(input)
+            '''with att maps'''
+            # outputs, atten_maps = model(input)
+            '''without att maps'''
+            outputs = model(input)
 
             # inspect_atten_map_by_locations(input, model, query_locations,
             #                                model_name="transposer", mode='dependency',
@@ -231,7 +301,10 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 # input_flipped = model(input[:, :, :, ::-1])
                 input_flipped = np.flip(input.cpu().numpy(), 3).copy()
                 input_flipped = torch.from_numpy(input_flipped).cuda()
-                outputs_flipped, atten_maps_flip = model(input_flipped) # outputs_flipped = model(input_flipped)
+                '''with att maps'''
+                # outputs_flipped, atten_maps_flip = model(input_flipped)
+                '''without att maps'''
+                outputs_flipped = model(input_flipped)
 
                 if isinstance(outputs_flipped, list):
                     output_flipped = outputs_flipped[-1]
@@ -273,7 +346,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             # double check this all_boxes parts
             all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
             all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
-            all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
+            all_boxes[idx:idx + num_images, 4] = np.prod(s * 200, 1)
             all_boxes[idx:idx + num_images, 5] = score
             image_path.extend(meta['image'])
 
@@ -284,14 +357,14 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
                       'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                          i, len(val_loader), batch_time=batch_time,
-                          loss=losses, acc=acc)
+                    i, len(val_loader), batch_time=batch_time,
+                    loss=losses, acc=acc)
                 logger.info(msg)
 
                 prefix = '{}_{}'.format(
                     os.path.join(output_dir, 'val'), i
                 )
-                save_debug_images(config, input, meta, target, pred*4, output,
+                save_debug_images(config, input, meta, target, pred * 4, output,
                                   prefix)
 
         name_values, perf_indicator = val_dataset.evaluate(
@@ -336,8 +409,9 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
 
     return perf_indicator
 
+
 def validate_resnet(config, val_loader, val_dataset, model, criterion, output_dir,
-             tb_log_dir, writer_dict=None):
+                    tb_log_dir, writer_dict=None):
     batch_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
@@ -354,7 +428,10 @@ def validate_resnet(config, val_loader, val_dataset, model, criterion, output_di
         end = time.time()
         for i, (input, meta) in enumerate(val_loader):
             # compute output
-            outputs, atten_maps = model(input) # outputs = model(input)
+            '''with att maps'''
+            # outputs, atten_maps = model(input)
+            '''without att maps'''
+            outputs = model(input)
 
             if isinstance(outputs, list):
                 output = outputs[-1]
@@ -369,7 +446,7 @@ def validate_resnet(config, val_loader, val_dataset, model, criterion, output_di
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
             accuracy = accuracy_classification(output.cpu().numpy(),
-                                             target.cpu().numpy())
+                                               target.cpu().numpy())
 
             acc.update(accuracy, num_images)
 
@@ -388,15 +465,13 @@ def validate_resnet(config, val_loader, val_dataset, model, criterion, output_di
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
                       'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                          i, len(val_loader), batch_time=batch_time,
-                          loss=losses, acc=acc)
+                    i, len(val_loader), batch_time=batch_time,
+                    loss=losses, acc=acc)
                 logger.info(msg)
 
                 prefix = '{}_{}'.format(
                     os.path.join(output_dir, 'val'), i
                 )
-
-
 
         model_name = config.MODEL.NAME
         if writer_dict:
@@ -415,7 +490,108 @@ def validate_resnet(config, val_loader, val_dataset, model, criterion, output_di
 
             writer_dict['valid_global_steps'] = global_steps + 1
 
-    return losses.avg, acc.avg
+    return acc.avg
+
+
+def validate_transaction(config, val_loader, val_dataset, model, criterion, output_dir,
+                         tb_log_dir, writer_dict=None):
+    batch_time = AverageMeter()
+    losses = AverageMeter()
+    acc1 = AverageMeter()
+    acc2 = AverageMeter()
+
+    a1 = config.LOSS.A1
+    a2 = config.LOSS.A2
+
+    # switch to evaluate mode
+    model.eval()
+
+    num_samples = len(val_dataset)
+    image_path = []
+    filenames = []
+    imgnums = []
+    idx = 0
+    with torch.no_grad():
+        end = time.time()
+        for i, (input, meta) in enumerate(val_loader):
+            # compute output
+            '''with att maps'''
+            # outputs, atten_maps = model(input)
+            '''without att maps'''
+            # outputs, action_outputs_trans, action_outputs_linear = model(input)
+            outputs, action_outputs_trans = model(input)
+
+            if isinstance(action_outputs_trans, list):
+                output = action_outputs_trans[-1]
+            else:
+                output1 = action_outputs_trans
+                # output2 = action_outputs_linear
+
+            target = meta['target'].cuda(non_blocking=True)
+
+            loss = criterion(output1, target)
+            # loss1 = criterion(output1, target)
+            # loss2 = criterion(output2, target)
+
+            # loss = loss1 * a1 + loss2 * a2
+
+            num_images = input.size(0)
+            # measure accuracy and record loss
+            losses.update(loss.item(), num_images)
+            accuracy_1 = accuracy_classification(output1.cpu().numpy(),
+                                                 target.cpu().numpy())
+            # accuracy_2 = accuracy_classification(output2.cpu().numpy(),
+            #                                      target.cpu().numpy())
+
+            acc1.update(accuracy_1, num_images)
+            # acc2.update(accuracy_2, num_images)
+
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
+
+            c = meta['center'].numpy()
+            s = meta['scale'].numpy()
+            score = meta['score'].numpy()
+
+            idx += num_images
+
+            if i % config.PRINT_FREQ == 0:
+                msg = 'Test: [{0}/{1}]\t' \
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
+                      'Accuracy of First Branch {acc1.val:.3f} ({acc1.avg:.3f})\t'.format(
+                    i, len(val_loader), batch_time=batch_time,
+                    loss=losses, acc1=acc1)
+                logger.info(msg)
+
+                prefix = '{}_{}'.format(
+                    os.path.join(output_dir, 'val'), i
+                )
+
+        model_name = config.MODEL.NAME
+        if writer_dict:
+            writer = writer_dict['writer']
+            global_steps = writer_dict['valid_global_steps']
+            writer.add_scalar(
+                'valid_loss',
+                losses.avg,
+                global_steps
+            )
+            writer.add_scalar(
+                'valid_acc_first_branch',
+                acc1.avg,
+                global_steps
+            )
+            # writer.add_scalar(
+            #     'valid_acc_second_branch',
+            #     acc2.avg,
+            #     global_steps
+            # )
+
+            writer_dict['valid_global_steps'] = global_steps + 1
+
+    return acc1.avg  # , acc2.avg
 
 
 # markdown format output
@@ -428,19 +604,20 @@ def _print_name_value(name_value, full_arch_name):
         ' '.join(['| {}'.format(name) for name in names]) +
         ' |'
     )
-    logger.info('|---' * (num_values+1) + '|')
+    logger.info('|---' * (num_values + 1) + '|')
 
     if len(full_arch_name) > 15:
         full_arch_name = full_arch_name[:8] + '...'
     logger.info(
         '| ' + full_arch_name + ' ' +
         ' '.join(['| {:.3f}'.format(value) for value in values]) +
-         ' |'
+        ' |'
     )
 
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 

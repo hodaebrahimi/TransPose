@@ -37,7 +37,9 @@ _C.MODEL = CN()
 _C.MODEL.NAME = 'pose_hrnet'
 _C.MODEL.INIT_WEIGHTS = True
 _C.MODEL.PRETRAINED = ''
+_C.MODEL.FINETUNE = True
 _C.MODEL.NUM_JOINTS = 17
+_C.MODEL.NUM_CLASSES = 40
 _C.MODEL.TAG_PER_JOINT = True
 _C.MODEL.TARGET_TYPE = 'gaussian'
 _C.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
@@ -54,6 +56,16 @@ _C.MODEL.ATTENTION_ACTIVATION = 'relu'
 _C.MODEL.POS_EMBEDDING = 'learnable'
 _C.MODEL.INTERMEDIATE_SUP = False
 _C.MODEL.PE_ONLY_AT_BEGIN = False
+# Transformer for action
+_C.MODEL.BOTTLENECK_NUM_ACTION = 0
+_C.MODEL.DIM_MODEL_ACTION = 256
+_C.MODEL.DIM_FEEDFORWARD_ACTION = 512
+_C.MODEL.ENCODER_LAYERS_ACTION = 6
+_C.MODEL.N_HEAD_ACTION = 8
+_C.MODEL.ATTENTION_ACTIVATION_ACTION = 'relu'
+_C.MODEL.POS_EMBEDDING_ACTION = 'learnable'
+_C.MODEL.INTERMEDIATE_SUP_ACTION = False
+_C.MODEL.PE_ONLY_AT_BEGIN_ACTION = False
 #### 
 
 _C.LOSS = CN()
@@ -61,6 +73,9 @@ _C.LOSS.USE_OHKM = False
 _C.LOSS.TOPK = 8
 _C.LOSS.USE_TARGET_WEIGHT = True
 _C.LOSS.USE_DIFFERENT_JOINTS_WEIGHT = False
+_C.LOSS.A1 = 0.7
+_C.LOSS.A2 = 0.2
+_C.LOSS.A3 = 0.1
 
 # DATASET related params
 _C.DATASET = CN()
@@ -73,8 +88,6 @@ _C.DATASET.HYBRID_JOINTS_TYPE = ''
 _C.DATASET.SELECT_DATA = False
 _C.DATASET.train_split = ''
 _C.DATASET.test_split = ''
-
-
 
 # training data augmentation
 _C.DATASET.FLIP = True
@@ -112,7 +125,7 @@ _C.TRAIN.SHUFFLE = True
 _C.TEST = CN()
 
 # darkpose
-_C.TEST.BLUR_KERNEL = 3 
+_C.TEST.BLUR_KERNEL = 3
 
 # size of images for each device
 _C.TEST.BATCH_SIZE_PER_GPU = 32
@@ -174,6 +187,6 @@ def update_config(cfg, args):
 
 if __name__ == '__main__':
     import sys
+
     with open(sys.argv[1], 'w') as f:
         print(_C, file=f)
-

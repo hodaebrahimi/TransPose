@@ -18,7 +18,7 @@ from torch.utils.data import Dataset
 from utils.transforms import get_affine_transform
 from utils.transforms import affine_transform
 from utils.transforms import fliplr_joints
-
+from utils.transforms import get_affine_transform_hoda
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,8 @@ class stanford(Dataset):
         self.image_height = cfg.MODEL.IMAGE_SIZE[1]
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
         self.transform = transform
+        # self.Tensor = T.ToTensor()
+        # self.Resize = T.Resize((224, 224))
         self.color_rgb = cfg.DATASET.COLOR_RGB
         self.image_size = np.array(cfg.MODEL.IMAGE_SIZE)
         self.heatmap_size = np.array(cfg.MODEL.HEATMAP_SIZE)
@@ -72,7 +74,7 @@ class stanford(Dataset):
             with open(cfg.DATASET.test_split) as fp:
                 contents = fp.read().split('\n')
                 # contents = contents[:10]
-        with open('/content/drive/MyDrive/classes of stanford/stanford40dataset', 'rb') as handle:
+        with open('/content/TransPose/data/stanford/stanford40dataset', 'rb') as handle:
             b = pickle.load(handle)
         j = 0
         for i, img in enumerate(self.anno['annotation'][0]):
@@ -169,8 +171,9 @@ class stanford(Dataset):
         #         c[0] = data_numpy.shape[1] - c[0] - 1
 
         # joints_heatmap = joints.copy()
-        trans = get_affine_transform(c, s, r, self.image_size)
-        trans_heatmap = get_affine_transform(c, s, r, self.heatmap_size)
+        # trans = get_affine_transform(c, s, r, self.image_size)
+        trans, inv_trans = get_affine_transform_hoda(c, s, r, self.image_size)
+        trans_heatmap, inv_trans_heatmap = get_affine_transform_hoda(c, s, r, self.heatmap_size)
 
         input = cv2.warpAffine(
             data_numpy,
@@ -178,8 +181,30 @@ class stanford(Dataset):
             (int(self.image_size[0]), int(self.image_size[1])),
             flags=cv2.INTER_LINEAR)
 
+        '''this is for first trial'''
+        # added by me
+        # original_image = cv2.warpAffine(input,
+        #                                 inv_trans,
+        #                                 (int(s[0]*200), int(s[1]*200)),
+        #                                 flags=cv2.INTER_CUBIC)
+        '''the one which works'''
+        # original_image = cv2.warpAffine(input,
+        #                                 inv_trans,
+        #                                 (int(data_numpy.shape[1]), int(data_numpy.shape[0])),
+        #                                 flags=cv2.INTER_LINEAR)
+        #
+        # root = r'F:/Projects/Transpose/TransPose/inverse_transformed'
+        # input_file = os.path.join(root,'transformed_' + db_rec['image_name'])
+        # original_file = os.path.join(root,'original_' + db_rec['image_name'])
+        #
+        # cv2.imwrite(input_file,input)
+        # cv2.imwrite(original_file,original_image)
+        ##
+
         if self.transform:
             input = self.transform(input)
+            # image_ = self.Tensor(data_numpy)
+            # image_ = self.Resize(image_)
 
         # for i in range(self.num_joints):
         #     if joints_vis[i, 0] > 0.0:
@@ -201,7 +226,12 @@ class stanford(Dataset):
             'scale': s,
             'rotation': r,
             'score': score,
-            'target': action
+            'target': action,
+            'inverse_heatmap_transform': inv_trans_heatmap,
+            # 'inverse_trans_input': inv_trans,
+            # 'image_': image_,
+            'size': data_numpy.shape
+
         }
 
         # return input, target, target_weight, meta

@@ -95,6 +95,25 @@ def get_optimizer_resnet(cfg, model_parameters):
     return optimizer
 
 
+def get_optimizer_resnet(cfg, model_parameters):
+    optimizer = None
+    if cfg.TRAIN.OPTIMIZER == 'sgd':
+        optimizer = optim.SGD(
+            model_parameters,
+            lr=cfg.TRAIN.LR,
+            momentum=cfg.TRAIN.MOMENTUM,
+            weight_decay=cfg.TRAIN.WD,
+            nesterov=cfg.TRAIN.NESTEROV
+        )
+    elif cfg.TRAIN.OPTIMIZER == 'adam':
+        optimizer = optim.Adam(
+            model_parameters,
+            lr=cfg.TRAIN.LR
+        )
+
+    return optimizer
+
+
 def save_checkpoint(states, is_best, output_dir,
                     filename='checkpoint.pth'):
     torch.save(states, os.path.join(output_dir, filename))

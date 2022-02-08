@@ -22,7 +22,6 @@ from ..core.inference import get_final_preds
 from ..utils.transforms import flip_back
 from ..utils.vis import save_debug_images_hoda
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -159,7 +158,7 @@ def validate(config, val_loader, val_dataset, model, output_dir,
             #                                  target.cpu().numpy())
 
             # i addd this part
-            pred, _ = get_max_preds_hoda(output.detach().cpu().numpy())
+            pred, joints_score = get_max_preds_hoda(output.detach().cpu().numpy())
 
             # acc.update(avg_acc, cnt)
 
@@ -201,8 +200,8 @@ def validate(config, val_loader, val_dataset, model, output_dir,
                 )
                 # save_debug_images(config, input, meta, target, pred*4, output,
                 #                   prefix)
-                save_debug_images_hoda(config, input, meta, pred * 4, output,
-                                  prefix)
+                save_debug_images_hoda(config, input, meta, pred * 4, output, joints_score,
+                                       prefix)
                 # save_debug_images_hoda(config, input, meta, preds, output,
                 #                        prefix)
 
