@@ -21,6 +21,8 @@ from core.inference import get_final_preds
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
 
+from torch.utils.tensorboard import SummaryWriter
+
 from torchvision.utils import save_image
 
 logger = logging.getLogger(__name__)
@@ -183,6 +185,7 @@ def train_transaction(config, train_loader, model, criterion, optimizer, epoch,
     losses = AverageMeter()
     acc1 = AverageMeter()
     acc2 = AverageMeter()
+    my_writer = SummaryWriter('/content/drive/MyDrive/runs/my_exp')
 
     a1 = config.LOSS.A1
     a2 = config.LOSS.A2
@@ -198,6 +201,7 @@ def train_transaction(config, train_loader, model, criterion, optimizer, epoch,
         # compute output
         # outputs, action_outputs_trans, action_outputs_linear = model(input)
         outputs, action_outputs_trans = model(input)
+        
 
         target = meta['target'].cuda(non_blocking=True)
 
@@ -252,12 +256,17 @@ def train_transaction(config, train_loader, model, criterion, optimizer, epoch,
             global_steps = writer_dict['train_global_steps']
             writer.add_scalar('train_loss', losses.val, global_steps)
             writer.add_scalar('train_acc_first_branch', acc1.val, global_steps)
+
+            my_writer.add_scalar('train_loss', losses.val, global_steps)
+            my_writer.add_scalar('train_acc_first_branch', acc1.val, global_steps)
             # writer.add_scalar('train_acc_second_branch', acc2.val, global_steps)
             writer_dict['train_global_steps'] = global_steps + 1
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
             # save_debug_images(config, input, meta, target, pred*4, output,
             #                   prefix)
+    my_writer.add_graph(model, input)
+    my_writer.close()
 
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,

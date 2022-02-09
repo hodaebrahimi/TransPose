@@ -30,7 +30,6 @@ from torchvision.utils import save_image
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
 
-
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
@@ -584,37 +583,41 @@ class TransActionH(nn.Module):
         self.conv1_1_4_action = nn.Conv2d(
             in_channels=d_model,
             out_channels=d_model * 2,
-            kernel_size=3,
-            stride=2,
+            kernel_size=1,
+            stride=1,
             padding=1
         )  # 192 * 32 * 24
-        self.bn1_1_action = nn.BatchNorm2d(num_features=192)
+        self.bn1_1_action = nn.BatchNorm2d(num_features=d_model * 2)
         self.relu1_1_action = nn.ReLU(inplace=True)
-        self.conv1_2_4_action = nn.Conv2d(
-            in_channels=d_model * 2,
-            out_channels=d_model * 2,
-            kernel_size=3,
-            stride=2,
-            padding=1
-        )  # 192 * 16 * 12
-        self.bn1_2_action = nn.BatchNorm2d(num_features=192)
-        self.relu1_2_action = nn.ReLU(inplace=True)
+        # self.conv1_2_4_action = nn.Conv2d(
+        #     in_channels=d_model * 2,
+        #     out_channels=d_model * 2,
+        #     kernel_size=3,
+        #     stride=2,
+        #     padding=1
+        # )  # 192 * 16 * 12
+        # self.bn1_2_action = nn.BatchNorm2d(num_features=d_model * 2)
+        # self.relu1_2_action = nn.ReLU(inplace=True)
         self.avgpool1_action = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout1_action = torch.nn.Dropout(p=0.4, inplace=True)
         self.fc1_1_action = nn.Linear(d_model * 2, cfg['MODEL']['NUM_CLASSES'])
 
-        self.conv2_1_4_action = nn.Conv2d(in_channels=96, out_channels=192, kernel_size=3,
-                                          padding=1, stride=2)
-        self.bn2_1_action = nn.BatchNorm2d(num_features=192)
-        self.relu2_1_action = nn.ReLU(inplace=True)
-        self.avgpool2_action = nn.AdaptiveAvgPool2d((1, 1))
-        self.avgpool3_action = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc2_1_action = nn.Linear(d_model * 4, 1000)
-        self.relu3_1_action = nn.ReLU(inplace=True)
-        self.fc2_2_action = nn.Linear(1000, cfg['MODEL']['NUM_CLASSES'])
+        # self.conv2_1_4_action = nn.Conv2d(in_channels=96, out_channels=192, kernel_size=3,
+        #                                   padding=1, stride=2)
+        # self.bn2_1_action = nn.BatchNorm2d(num_features=192)
+        # self.relu2_1_action = nn.ReLU(inplace=True)
+        # self.avgpool2_action = nn.AdaptiveAvgPool2d((1, 1))
+        # self.avgpool3_action = nn.AdaptiveAvgPool2d((1, 1))
+        # self.dropout2_action = nn.Dropout(p=0.4, inplace=True)
+        # self.fc2_1_action = nn.Linear(d_model * 4, 100)
+        # self.relu3_1_action = nn.ReLU(inplace=True)
+        # self.dropout3_action = nn.Dropout(p=0.4, inplace=True)
+        # self.fc2_2_action = nn.Linear(100, cfg['MODEL']['NUM_CLASSES'])
 
-        self.action_linear_skeleton_1 = nn.Linear(3003, 1000)
-        self.action_relu_skeleton = nn.ReLU(inplace=True)
-        self.action_linear_skeleton_2 = nn.Linear(1000, cfg['MODEL']['NUM_CLASSES'])
+        # self.action_linear_skeleton_1 = nn.Linear(3003, 1000)
+        # self.action_relu_skeleton = nn.ReLU(inplace=True)
+        # self.dropout4_action = nn.Dropout(p=0.4, inplace=True)
+        # self.action_linear_skeleton_2 = nn.Linear(1000, cfg['MODEL']['NUM_CLASSES'])
 
         self.pretrained_layers = extra['PRETRAINED_LAYERS']
 
@@ -813,25 +816,28 @@ class TransActionH(nn.Module):
         x = self.global_encoder_4_action(x, pos=self.pos_embedding)
         x = x.permute(1, 2, 0).contiguous().view(bs, c, h, w)
         x = self.relu1_1_action(self.bn1_1_action(self.conv1_1_4_action(x)))
-        x = self.relu1_2_action(self.bn1_2_action(self.conv1_2_4_action(x)))
+        # x = self.relu1_2_action(self.bn1_2_action(self.conv1_2_4_action(x)))
         x = self.avgpool1_action(x)
+        x = self.dropout1_action(x)
         x = torch.flatten(x, 1)
         x = self.fc1_1_action(x)
 
-        z = self.relu2_1_action(self.bn2_1_action(self.conv2_1_4_action(y_list[1])))
-        z = self.avgpool2_action(z)
-        z = torch.flatten(z, 1)
+        # z = self.relu2_1_action(self.bn2_1_action(self.conv2_1_4_action(y_list[1])))
+        # z = self.avgpool2_action(z)
+        # z = torch.flatten(z, 1)
 
-        t = self.avgpool3_action(y_list[2])
-        t = torch.flatten(t, 1)
+        # t = self.avgpool3_action(y_list[2])
+        # t = torch.flatten(t, 1)
 
-        z = torch.cat((z, t), dim=1)
-        z = self.fc2_2_action(self.relu3_1_action(self.fc2_1_action(z)))
+        # z = torch.cat((z, t), dim=1)
+        # z = self.dropout2_action(z)
+        # z = self.fc2_2_action(self.relu3_1_action
+        #                       (self.dropout3_action(self.fc2_1_action(z))))
 
-        q = self.action_linear_skeleton_2(self.action_relu_skeleton(
-            self.action_linear_skeleton_1(skeleton_vecs)))
+        # q = self.action_linear_skeleton_2(self.action_relu_skeleton(
+        #     self.dropout4_action(self.action_linear_skeleton_1(skeleton_vecs))))
 
-        x = self.a1 * x + self.a2 * z + self.a3 * q
+        # x = self.a1 * x + self.a2 * z + self.a3 * q
 
         # return x, atten_maps
         # return x

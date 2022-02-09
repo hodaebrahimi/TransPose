@@ -30,6 +30,7 @@ import _init_paths
 from config import cfg
 from config import update_config
 from core.loss import JointsMSELoss
+import torch.nn as nn
 from torch.nn import CrossEntropyLoss as cel
 from core.function import train
 from core.function import train_resnet
@@ -138,20 +139,26 @@ def main():
 
     trainable_parameters = []
 
+    logger.info('doesnt need:')
     for name, param in model.named_parameters():
         # print(name)
         if 'action' in name:
             param.requires_grad = True
             trainable_parameters.append(param)
+            if param.dim() > 1:
+                nn.init.kaiming_normal_(param, a=0, mode='fan_in', nonlinearity='relu')
         # elif 'apply_kp_htmp.weight' in name:
         #     param.requires_grad = True
         #     trainable_parameters.append(param)
         else:
             param.requires_grad = False
+            logger.info(name)
 
+    logger.info('needs:')
     for name, param in model.named_parameters():
         if param.requires_grad:
-            print(name)
+            logger.info(name)
+            logger.info(param)
 
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
 
@@ -259,30 +266,31 @@ def main():
 
         # average_acc_1, average_acc_2 = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
         #                                                     final_output_dir, tb_log_dir)
-        average_acc = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
+        if epoch % 5 == 4:
+            average_acc = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
                                                             final_output_dir, tb_log_dir)
 
-        lr_scheduler.step()
+            lr_scheduler.step()
         # average_acc = (average_acc_1 + average_acc_2) / 2
 
-        if average_acc >= best_perf:
-            best_perf = average_acc
-            best_model = True
-        else:
-            best_model = False
+            if average_acc >= best_perf:
+                best_perf = average_acc
+                best_model = True
+            else:
+                best_model = False
 
-        logger.info('=> saving checkpoint to {}'.format(final_output_dir))
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'model': cfg.MODEL.NAME,
-            'state_dict': model.state_dict(),
-            'best_state_dict': model.module.state_dict(),
-            'accuracy_branch_1': average_acc,
-            # 'accuracy_branch_2': average_acc_2,
-            'optimizer': optimizer.state_dict(),
-            'train_global_steps': writer_dict['train_global_steps'],
-            'valid_global_steps': writer_dict['valid_global_steps'],
-        }, best_model, final_output_dir)
+            logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+            save_checkpoint({
+                'epoch': epoch + 1,
+                'model': cfg.MODEL.NAME,
+                'state_dict': model.state_dict(),
+                'best_state_dict': model.module.state_dict(),
+                'accuracy_branch_1': average_acc,
+                # 'accuracy_branch_2': average_acc_2,
+                'optimizer': optimizer.state_dict(),
+                'train_global_steps': writer_dict['train_global_steps'],
+                'valid_global_steps': writer_dict['valid_global_steps'],
+            }, best_model, final_output_dir)
 
     final_model_state_file = os.path.join(
         final_output_dir, 'final_state.pth'
