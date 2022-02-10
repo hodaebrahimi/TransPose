@@ -127,8 +127,14 @@ def main():
         final_output_dir)
     # logger.info(pprint.pformat(model))
 
+    # writer_dict = {
+    #     'writer': SummaryWriter(log_dir=tb_log_dir),
+    #     'train_global_steps': 0,
+    #     'valid_global_steps': 0,
+    # }
+
     writer_dict = {
-        'writer': SummaryWriter(log_dir=tb_log_dir),
+        'writer': SummaryWriter(log_dir='/content/drive/MyDrive/transaction_log/stanford/transaction_h'),
         'train_global_steps': 0,
         'valid_global_steps': 0,
     }
@@ -200,6 +206,7 @@ def main():
     )
 
     best_perf = 0.0
+    average_acc = 0.0
     best_model = False
     last_epoch = -1
 
@@ -228,6 +235,7 @@ def main():
 
         begin_epoch = checkpoint['epoch']
         best_perf = checkpoint['accuracy_branch_1']
+        # average_acc = checkpoint['accuracy_branch_1']
         last_epoch = checkpoint['epoch']
 
         writer_dict['train_global_steps'] = checkpoint['train_global_steps']
@@ -266,21 +274,21 @@ def main():
 
         # average_acc_1, average_acc_2 = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
         #                                                     final_output_dir, tb_log_dir)
-        if epoch % 5 == 4:
-            average_acc = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
+        if epoch % 4 == 0 :
+          average_acc = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
                                                             final_output_dir, tb_log_dir)
 
-            lr_scheduler.step()
+        lr_scheduler.step()
         # average_acc = (average_acc_1 + average_acc_2) / 2
 
-            if average_acc >= best_perf:
-                best_perf = average_acc
-                best_model = True
-            else:
-                best_model = False
+        if average_acc >= best_perf:
+            best_perf = average_acc
+            best_model = True
+        else:
+            best_model = False
 
-            logger.info('=> saving checkpoint to {}'.format(final_output_dir))
-            save_checkpoint({
+        logger.info('=> saving checkpoint to {}'.format(final_output_dir))
+        save_checkpoint({
                 'epoch': epoch + 1,
                 'model': cfg.MODEL.NAME,
                 'state_dict': model.state_dict(),
@@ -290,7 +298,7 @@ def main():
                 'optimizer': optimizer.state_dict(),
                 'train_global_steps': writer_dict['train_global_steps'],
                 'valid_global_steps': writer_dict['valid_global_steps'],
-            }, best_model, final_output_dir)
+        }, best_model, final_output_dir)
 
     final_model_state_file = os.path.join(
         final_output_dir, 'final_state.pth'
