@@ -21,6 +21,9 @@ from core.inference import get_final_preds
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
 
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
 from torch.utils.tensorboard import SummaryWriter
 
 from torchvision.utils import save_image
@@ -44,6 +47,8 @@ logger = logging.getLogger(__name__)
 #     plt.grid(True)
 #     plt.savefig('F:/Projects/Transpose/TransPose/model_weights')
 #     # plt.show(block=True)
+
+
 def plot_grad_flow(named_parameters):
     '''Plots the gradients flowing through different layers in the net during training.
     Can be used for checking for possible gradient vanishing / exploding problems.
@@ -268,7 +273,7 @@ def train_transaction(config, train_loader, model, criterion, optimizer, epoch,
         # compute gradient and do update step
         optimizer.zero_grad()
         loss.backward()
-        # plot_grad_flow(model.named_parameters())
+        plot_grad_flow(model.named_parameters())
         optimizer.step()
 
         # b = list()
