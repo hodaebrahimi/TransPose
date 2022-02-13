@@ -570,8 +570,8 @@ class TransActionH(nn.Module):
         # self.global_encoder = TransformerEncoder(
         #     encoder_layer, encoder_layers_num, return_atten_map=True)
 
-        self.global_encoder_4_action = TransformerEncoder(
-            encoder_layer_4_action, encoder_layers_num_4_action)
+        # self.global_encoder_4_action = TransformerEncoder(
+        #     encoder_layer_4_action, encoder_layers_num_4_action)
 
         self.final_layer = nn.Conv2d(
             in_channels=d_model,
@@ -581,27 +581,27 @@ class TransActionH(nn.Module):
             padding=1 if extra['FINAL_CONV_KERNEL'] == 3 else 0
         )
 
-        self.conv1_1_4_action = nn.Conv2d(
-            in_channels=d_model,
-            out_channels=d_model * 2,
-            kernel_size=3,
-            stride=2,
-            padding=1
-        )  # 192 * 32 * 24
-        # self.bn1_1_action = nn.BatchNorm2d(num_features=192)
-        # self.relu1_1_action = nn.ReLU(inplace=True)
-        self.conv1_2_4_action = nn.Conv2d(
-            in_channels=d_model * 2,
-            out_channels=d_model * 2,
-            kernel_size=3,
-            stride=2,
-            padding=1
-        )  # 192 * 16 * 12
-        self.bn1_2_action = nn.BatchNorm2d(num_features=192)
-        self.relu1_2_action = nn.ReLU(inplace=True)
-        self.avgpool1_action = nn.AdaptiveAvgPool2d((1, 1))
-        # self.dropout1_action = torch.nn.Dropout(p=0.4, inplace=True)
-        self.fc1_1_action = nn.Linear(d_model * 2, cfg['MODEL']['NUM_CLASSES'])
+        # self.conv1_1_4_action = nn.Conv2d(
+        #     in_channels=d_model,
+        #     out_channels=d_model * 2,
+        #     kernel_size=3,
+        #     stride=2,
+        #     padding=1
+        # )  # 192 * 32 * 24
+        # # self.bn1_1_action = nn.BatchNorm2d(num_features=192)
+        # # self.relu1_1_action = nn.ReLU(inplace=True)
+        # self.conv1_2_4_action = nn.Conv2d(
+        #     in_channels=d_model * 2,
+        #     out_channels=d_model * 2,
+        #     kernel_size=3,
+        #     stride=2,
+        #     padding=1
+        # )  # 192 * 16 * 12
+        # self.bn1_2_action = nn.BatchNorm2d(num_features=192)
+        # self.relu1_2_action = nn.ReLU(inplace=True)
+        # self.avgpool1_action = nn.AdaptiveAvgPool2d((1, 1))
+        # # self.dropout1_action = torch.nn.Dropout(p=0.4, inplace=True)
+        # self.fc1_1_action = nn.Linear(d_model * 2, cfg['MODEL']['NUM_CLASSES'])
 
         # self.conv2_1_4_action = nn.Conv2d(in_channels=96, out_channels=192, kernel_size=3,
         #                                   padding=1, stride=2)
@@ -615,10 +615,11 @@ class TransActionH(nn.Module):
         # self.dropout3_action = nn.Dropout(p=0.4, inplace=True)
         # self.fc2_2_action = nn.Linear(100, cfg['MODEL']['NUM_CLASSES'])
         #
-        # self.action_linear_skeleton_1 = nn.Linear(3003, 1000)
-        # self.action_relu_skeleton = nn.ReLU(inplace=True)
-        # self.dropout4_action = nn.Dropout(p=0.4, inplace=True)
-        # self.action_linear_skeleton_2 = nn.Linear(1000, cfg['MODEL']['NUM_CLASSES'])
+        self.action_linear_skeleton_1 = nn.Linear(3003, 1000)
+        # self.action_bn_skeleton = nn.BatchNorm2d(num_features=1000)
+        self.action_relu_skeleton = nn.ReLU(inplace=True)
+        self.dropout4_action = nn.Dropout(p=0.4, inplace=True)
+        self.action_linear_skeleton_2 = nn.Linear(1000, cfg['MODEL']['NUM_CLASSES'])
 
         self.pretrained_layers = extra['PRETRAINED_LAYERS']
 
@@ -811,20 +812,20 @@ class TransActionH(nn.Module):
         y = self.global_encoder(x, pos=self.pos_embedding)
         y = y.permute(1, 2, 0).contiguous().view(bs, c, h, w)
         y = self.final_layer(y)
-        # preds, maxvals = get_max_preds(y.detach().cpu().numpy())
-        # skeleton_vecs = get_pose_vectors(preds, maxvals)
+        preds, maxvals = get_max_preds(y.detach().cpu().numpy())
+        skeleton_vecs = get_pose_vectors(preds, maxvals)
         """action"""
-        x = self.global_encoder_4_action(x, pos=self.pos_embedding)
-        x = x.permute(1, 2, 0).contiguous().view(bs, c, h, w)
-        # x = self.relu1_1_action(self.bn1_1_action(self.conv1_1_4_action(x)))
-        # x = self.bn1_1_action(self.conv1_1_4_action(x))
-        # x = self.relu1_1_action(self.conv1_1_4_action(x))
-        # x = self.relu1_2_action(self.bn1_2_action(self.conv1_2_4_action(x)))
-        x = self.relu1_2_action(self.bn1_2_action(self.conv1_2_4_action(self.conv1_1_4_action(x))))
-        x = self.avgpool1_action(x)
-        # x = self.dropout1_action(x)
-        x = torch.flatten(x, 1)
-        x = self.fc1_1_action(x)
+        # x = self.global_encoder_4_action(x, pos=self.pos_embedding)
+        # x = x.permute(1, 2, 0).contiguous().view(bs, c, h, w)
+        # # x = self.relu1_1_action(self.bn1_1_action(self.conv1_1_4_action(x)))
+        # # x = self.bn1_1_action(self.conv1_1_4_action(x))
+        # # x = self.relu1_1_action(self.conv1_1_4_action(x))
+        # # x = self.relu1_2_action(self.bn1_2_action(self.conv1_2_4_action(x)))
+        # x = self.relu1_2_action(self.bn1_2_action(self.conv1_2_4_action(self.conv1_1_4_action(x))))
+        # x = self.avgpool1_action(x)
+        # # x = self.dropout1_action(x)
+        # x = torch.flatten(x, 1)
+        # x = self.fc1_1_action(x)
 
         # z = self.relu2_1_action(self.bn2_1_action(self.conv2_1_4_action(y_list[1])))
         # z = self.avgpool2_action(z)
@@ -838,8 +839,12 @@ class TransActionH(nn.Module):
         # z = self.fc2_2_action(self.relu3_1_action
         #                       (self.dropout3_action(self.fc2_1_action(z))))
         #
-        # q = self.action_linear_skeleton_2(self.action_relu_skeleton(
-        #     self.dropout4_action(self.action_linear_skeleton_1(skeleton_vecs))))
+        q = self.action_linear_skeleton_2(
+            self.action_relu_skeleton(
+            self.dropout4_action(
+            # self.action_bn_skeleton(
+            self.action_linear_skeleton_1(skeleton_vecs))))
+            # )
         #
         # x = self.a1 * x + self.a2 * z + self.a3 * q
 
@@ -847,7 +852,7 @@ class TransActionH(nn.Module):
         # return x
 
         # return y, x  # , z
-        return y, x
+        return y, q
 
     def init_weights(self, pretrained='', print_load_info=False):
         logger.info('=> init weights from normal distribution')

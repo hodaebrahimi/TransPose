@@ -274,8 +274,8 @@ def main():
 
         # average_acc_1, average_acc_2 = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
         #                                                     final_output_dir, tb_log_dir)
-        if epoch % 4 == 0 :
-          average_acc = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
+        # if epoch % 4 == 0 :
+        average_acc = validate_transaction(cfg, valid_loader, valid_dataset, model, criterion,
                                                             final_output_dir, tb_log_dir)
 
         lr_scheduler.step()
