@@ -50,6 +50,8 @@ class stanford(Dataset):
         self.transform = transform
         # self.Tensor = T.ToTensor()
         # self.Resize = T.Resize((224, 224))
+        self.rotation = cfg.DATASET.ROT_FACTOR
+        self.scale_factor = cfg.DATASET.SCALE_FACTOR
         self.color_rgb = cfg.DATASET.COLOR_RGB
         self.image_size = np.array(cfg.MODEL.IMAGE_SIZE)
         self.heatmap_size = np.array(cfg.MODEL.HEATMAP_SIZE)
@@ -146,7 +148,7 @@ class stanford(Dataset):
         c = db_rec['center']
         s = db_rec['scale']
         score = db_rec['score'] if 'score' in db_rec else 1
-        r = 0
+        r = self.rotation
 
         # if self.is_train:
         #     if (np.sum(joints_vis[:, 0]) > self.num_joints_half_body
